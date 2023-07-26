@@ -16,10 +16,6 @@
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_proto_library", "objc_library")
 
-licenses(["notice"])  # Apache v2
-
-exports_files(["LICENSE"])
-
 COPTS = [
     "-DBTHREAD_USE_FAST_PTHREAD_MUTEX",
     "-D__const__=__unused__",
@@ -30,53 +26,16 @@ COPTS = [
     "-D__STDC_LIMIT_MACROS",
     "-D__STDC_CONSTANT_MACROS",
     "-DGFLAGS_NS=google",
-] + select({
-    "//bazel/config:brpc_with_glog": ["-DBRPC_WITH_GLOG=1"],
-    "//conditions:default": ["-DBRPC_WITH_GLOG=0"],
-}) + select({
-    "//bazel/config:brpc_with_mesalink": ["-DUSE_MESALINK"],
-    "//conditions:default": [""],
-}) + select({
-    "//bazel/config:brpc_with_thrift": ["-DENABLE_THRIFT_FRAMED_PROTOCOL=1"],
-    "//conditions:default": [""],
-}) + select({
-    "//bazel/config:brpc_with_thrift_legacy_version": [],
-    "//conditions:default": ["-DTHRIFT_STDCXX=std"],
-}) + select({
-    "//bazel/config:brpc_with_rdma": ["-DBRPC_WITH_RDMA=1"],
-    "//conditions:default": [""],
-})
+    "-DBRPC_WITH_GLOG=1",
+    "-DENABLE_THRIFT_FRAMED_PROTOCOL=1",
+    "-DTHRIFT_STDCXX=std",
+]
 
 LINKOPTS = [
     "-pthread",
     "-ldl",
-] + select({
-    "@bazel_tools//tools/osx:darwin": [
-        "-framework CoreFoundation",
-        "-framework CoreGraphics",
-        "-framework CoreData",
-        "-framework CoreText",
-        "-framework Security",
-        "-framework Foundation",
-        "-Wl,-U,_MallocExtension_ReleaseFreeMemory",
-        "-Wl,-U,_ProfilerStart",
-        "-Wl,-U,_ProfilerStop",
-        "-Wl,-U,_RegisterThriftProtocol",
-    ],
-    "//conditions:default": [
-        "-lrt",
-    ],
-}) + select({
-    "//bazel/config:brpc_with_mesalink": [
-        "-lmesalink",
-    ],
-    "//conditions:default": [],
-}) + select({
-    "//bazel/config:brpc_with_rdma": [
-        "-libverbs",
-    ],
-    "//conditions:default": [],
-})
+    "-lrt",
+]
 
 genrule(
     name = "config_h",
@@ -90,11 +49,7 @@ genrule(
 #ifdef BRPC_WITH_GLOG
 #undef BRPC_WITH_GLOG
 #endif
-#define BRPC_WITH_GLOG """ + select({
-              "//bazel/config:brpc_with_glog": "1",
-              "//conditions:default": "0",
-          }) +
-          """
+#define BRPC_WITH_GLOG 1
 #endif  // BUTIL_CONFIG_H
 EOF
     """,
@@ -213,84 +168,10 @@ BUTIL_SRCS = [
     "src/butil/binary_printer.cpp",
     "src/butil/recordio.cc",
     "src/butil/popen.cpp",
-] + select({
-    "@bazel_tools//tools/osx:darwin": [
-        "src/butil/time/time_mac.cc",
-        "src/butil/mac/scoped_mach_port.cc",
-    ],
-    "//conditions:default": [
-        "src/butil/file_util_linux.cc",
-        "src/butil/threading/platform_thread_linux.cc",
-        "src/butil/strings/sys_string_conversions_posix.cc",
-    ],
-})
-
-objc_library(
-    name = "macos_lib",
-    hdrs = [
-        "src/butil/atomicops.h",
-        "src/butil/atomicops_internals_atomicword_compat.h",
-        "src/butil/atomicops_internals_mac.h",
-        "src/butil/base_export.h",
-        "src/butil/basictypes.h",
-        "src/butil/build_config.h",
-        "src/butil/compat.h",
-        "src/butil/compiler_specific.h",
-        "src/butil/containers/hash_tables.h",
-        "src/butil/debug/debugger.h",
-        "src/butil/debug/leak_annotations.h",
-        "src/butil/file_descriptor_posix.h",
-        "src/butil/file_util.h",
-        "src/butil/files/file.h",
-        "src/butil/files/file_path.h",
-        "src/butil/files/scoped_file.h",
-        "src/butil/lazy_instance.h",
-        "src/butil/logging.h",
-        "src/butil/mac/bundle_locations.h",
-        "src/butil/mac/foundation_util.h",
-        "src/butil/mac/scoped_cftyperef.h",
-        "src/butil/mac/scoped_typeref.h",
-        "src/butil/macros.h",
-        "src/butil/memory/aligned_memory.h",
-        "src/butil/memory/scoped_policy.h",
-        "src/butil/memory/scoped_ptr.h",
-        "src/butil/move.h",
-        "src/butil/port.h",
-        "src/butil/posix/eintr_wrapper.h",
-        "src/butil/scoped_generic.h",
-        "src/butil/strings/string16.h",
-        "src/butil/strings/string_piece.h",
-        "src/butil/strings/string_util.h",
-        "src/butil/strings/string_util_posix.h",
-        "src/butil/strings/sys_string_conversions.h",
-        "src/butil/synchronization/lock.h",
-        "src/butil/third_party/dynamic_annotations/dynamic_annotations.h",
-        "src/butil/third_party/murmurhash3/murmurhash3.h",
-        "src/butil/threading/platform_thread.h",
-        "src/butil/threading/thread_id_name_manager.h",
-        "src/butil/threading/thread_restrictions.h",
-        "src/butil/time.h",
-        "src/butil/time/time.h",
-        "src/butil/type_traits.h",
-        ":config_h",
-    ],
-    enable_modules = True,
-    includes = ["src/"],
-    non_arc_srcs = [
-        "src/butil/mac/bundle_locations.mm",
-        "src/butil/mac/foundation_util.mm",
-        "src/butil/file_util_mac.mm",
-        "src/butil/threading/platform_thread_mac.mm",
-        "src/butil/strings/sys_string_conversions_mac.mm",
-    ],
-    tags = ["manual"],
-    deps = [
-        "@com_github_gflags_gflags//:gflags",
-    ] + select({
-        "//bazel/config:brpc_with_glog": ["@com_github_google_glog//:glog"],
-        "//conditions:default": [],
-    }),
-)
+    "src/butil/file_util_linux.cc",
+    "src/butil/threading/platform_thread_linux.cc",
+    "src/butil/strings/sys_string_conversions_posix.cc",
+]
 
 cc_library(
     name = "butil",
@@ -308,31 +189,20 @@ cc_library(
         "src/butil/third_party/dmg_fp/dtoa.cc",
         ":config_h",
     ],
-    copts = COPTS + select({
-        "//bazel/config:brpc_build_for_unittest": [
-            "-DBVAR_NOT_LINK_DEFAULT_VARIABLES",
-            "-DUNIT_TEST",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = COPTS,
     includes = [
         "src/",
     ],
     linkopts = LINKOPTS,
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_gflags_gflags//:gflags",
-        "@com_github_madler_zlib//:zlib",
-        "@com_google_protobuf//:protobuf",
+        "@gflags",
         "@openssl//:crypto",
         "@openssl//:ssl",
-    ] + select({
-        "//bazel/config:brpc_with_glog": ["@com_github_google_glog//:glog"],
-        "//conditions:default": [],
-    }) + select({
-        "@bazel_tools//tools/osx:darwin": [":macos_lib"],
-        "//conditions:default": [],
-    }),
+        "@protobuf",
+        "@zlib",
+        "@glog"
+    ],
 )
 
 cc_library(
@@ -345,22 +215,13 @@ cc_library(
         exclude = [
             "src/bvar/default_variables.cpp",
         ],
-    ) + select({
-        "//bazel/config:brpc_build_for_unittest": [],
-        "//conditions:default": ["src/bvar/default_variables.cpp"],
-    }),
+    ) + ["src/bvar/default_variables.cpp"],
     hdrs = glob([
         "src/bvar/*.h",
         "src/bvar/utils/*.h",
         "src/bvar/detail/*.h",
     ]),
-    copts = COPTS + select({
-        "//bazel/config:brpc_build_for_unittest": [
-            "-DBVAR_NOT_LINK_DEFAULT_VARIABLES",
-            "-DUNIT_TEST",
-        ],
-        "//conditions:default": [],
-    }),
+    copts = COPTS,
     includes = [
         "src/",
     ],
@@ -431,7 +292,7 @@ cc_library(
     deps = [
         ":brpc_idl_options_cc_proto",
         ":butil",
-        "@com_google_protobuf//:protoc_lib",
+        "@protobuf//:protoc_lib",
     ],
 )
 
@@ -448,7 +309,7 @@ proto_library(
     srcs = [":brpc_idl_options_proto_srcs"],
     visibility = ["//visibility:public"],
     deps = [
-        "@com_google_protobuf//:descriptor_proto",
+        "@protobuf//:descriptor_proto",
     ],
 )
 
@@ -474,7 +335,7 @@ proto_library(
     visibility = ["//visibility:public"],
     deps = [
         ":brpc_idl_options_proto",
-        "@com_google_protobuf//:descriptor_proto",
+        "@protobuf//:descriptor_proto",
     ],
 )
 
@@ -486,28 +347,25 @@ cc_proto_library(
 
 cc_library(
     name = "brpc",
-    srcs = glob([
-        "src/brpc/*.cpp",
-        "src/brpc/**/*.cpp",
-    ],
-    exclude = [
-        "src/brpc/thrift_service.cpp",
-        "src/brpc/thrift_message.cpp",
-        "src/brpc/policy/thrift_protocol.cpp",
-        "src/brpc/event_dispatcher_epoll.cpp",
-        "src/brpc/event_dispatcher_kqueue.cpp",
-    ]) + select({
-        "//bazel/config:brpc_with_thrift": glob([
-            "src/brpc/thrift*.cpp",
-            "src/brpc/**/thrift*.cpp",
-        ]),
-        "//conditions:default": [],
-    }),
+    srcs = glob(
+        [
+            "src/brpc/*.cpp",
+            "src/brpc/**/*.cpp",
+            # "src/brpc/thrift*.cpp",
+            # "src/brpc/**/thrift*.cpp",
+        ],
+        exclude = [
+            # "src/brpc/thrift_service.cpp",
+            # "src/brpc/thrift_message.cpp",
+            "src/brpc/policy/thrift_protocol.cpp",
+            "src/brpc/event_dispatcher_epoll.cpp",
+            "src/brpc/event_dispatcher_kqueue.cpp",
+        ],
+    ),
     hdrs = glob([
-        "src/brpc/*.h",
         "src/brpc/**/*.h",
-        "src/brpc/event_dispatcher_epoll.cpp",
-        "src/brpc/event_dispatcher_kqueue.cpp",
+        # "src/brpc/event_dispatcher_epoll.cpp",
+        # "src/brpc/event_dispatcher_kqueue.cpp",
     ]),
     copts = COPTS,
     includes = [
@@ -522,13 +380,9 @@ cc_library(
         ":bvar",
         ":json2pb",
         ":mcpack2pb",
-        "@com_github_google_leveldb//:leveldb",
-    ] + select({
-        "//bazel/config:brpc_with_thrift": [
-            "@org_apache_thrift//:thrift",
-        ],
-        "//conditions:default": [],
-    }),
+        "@leveldb",
+        "//source/thrift",
+    ],
 )
 
 cc_binary(
