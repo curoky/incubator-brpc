@@ -357,7 +357,7 @@ cc_library(
         exclude = [
             # "src/brpc/thrift_service.cpp",
             # "src/brpc/thrift_message.cpp",
-            "src/brpc/policy/thrift_protocol.cpp",
+            # "src/brpc/policy/thrift_protocol.cpp",
             "src/brpc/event_dispatcher_epoll.cpp",
             "src/brpc/event_dispatcher_kqueue.cpp",
         ],
@@ -381,7 +381,7 @@ cc_library(
         ":json2pb",
         ":mcpack2pb",
         "@leveldb",
-        "//source/thrift",
+        "@thrift",
     ],
 )
 
